@@ -1,0 +1,10 @@
+'use client';
+import {useEffect,useState,useCallback} from 'react';
+import {Clock3,Headphones,Loader2} from 'lucide-react';
+import {Header,Player,Track} from './shared';
+export default function Listener({id}:{id:string}){const [track,setTrack]=useState<Track|null>(null),[error,setError]=useState(''),[expired,setExpired]=useState(false),[loading,setLoading]=useState(true);const expire=useCallback(()=>setExpired(true),[]);
+ const load=useCallback(async()=>{setLoading(true);setError('');try{const r=await fetch(`/api/tracks/${id}`);const d=await r.json() as {error:string;track:Track;tracks:Track[]};if(r.status===410||r.status===404){setExpired(true);return;}if(!r.ok)throw Error(d.error);setTrack(d.track);}catch(e){setError((e as Error).message);}finally{setLoading(false);}},[id]);
+ useEffect(()=>{void load();},[load]);
+ useEffect(()=>{if(!track)return;const check=async()=>{try{const r=await fetch(`/api/tracks/${id}`);if(r.status===410||r.status===404)setExpired(true);}catch{}};const timer=setInterval(check,30000);const visible=()=>{if(!document.hidden)void check();};document.addEventListener('visibilitychange',visible);return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',visible);};},[track,id]);
+ return <><Header/><main className="listener"><div className="listener-title"><span className="eyebrow">YOUR PRIVATE LISTENING ROOM</span><h1>Take a moment. Tune in.</h1></div>{loading?<div className="listener-state"><Loader2 className="spin"/>Getting your track ready…</div>:expired?<div className="listener-state"><Clock3 size={36}/><h2>This listening room has closed.</h2><p>The link has expired or been ended by the sender.<br/>Ask them for a fresh link to listen again.</p></div>:error?<div className="listener-state"><p role="alert">{error}</p><button className="primary" onClick={load}>Try again</button></div>:track?<Player track={track} onExpired={expire}/>:null}<p className="listener-foot"><Headphones size={16}/> Best enjoyed with headphones.</p></main></>;
+}

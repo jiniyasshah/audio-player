@@ -11,7 +11,8 @@ A simple audio-sharing website: upload a song, send a listening link, and let cl
 - Public, unguessable listening links that expire 24 hours after upload.
 - Progressive byte-range streaming, seeking, pause, replay, repeat and volume.
 - Server-side expiry checks for metadata and audio requests.
-- Browser-specific upload management and the ability to end links early.
+- Browser-specific upload management and a Delete action that removes the stored audio and disables its link before expiry.
+- Optional custom robotic voice watermarks with automatic or manual timestamps, volume control, music ducking, and preview before sharing.
 - Responsive black-and-white interface with a charcoal player.
 
 There is no download button. Audio played in a browser can still be captured or recorded; this is not DRM. Anyone with a listening link can listen or forward it until expiry.
@@ -72,3 +73,29 @@ Links become inaccessible after 24 hours. Expired records and objects are remove
 ## Validation
 
 The exported application previously passed TypeScript checking, a production build, and local Worker checks for anonymous uploads, isolated browser lists, ownership enforcement, cross-origin deletion protection, streaming ranges, and expiry.
+
+## Robotic voice watermark
+
+Enable the watermark after selecting an audio file, enter an English message (up to 120 characters), and choose Auto placement or comma-separated timestamps such as `0:15, 1:10, 2:30`. Auto placement starts around 10 seconds and repeats about every 45 seconds; short tracks adapt automatically. Manual placements must leave room for the whole message and cannot overlap.
+
+Adjust the voice volume and optionally lower the music while the voice speaks. Choose **Prepare watermarked preview**, listen to the result, then create the link. Changing the file or settings invalidates the preview and requires preparing it again. Preparation can be cancelled.
+
+The browser generates robotic speech with meSpeak/eSpeak, mixes it into PCM, and encodes a 192 kbps MP3 in a background worker. Only the finished mixed MP3 is uploaded; the original is not uploaded when watermarking is enabled. It is not a separate browser speech overlay. The sender's original file is unchanged. This is an audible deterrent, not DRM.
+
+Watermarking supports mono/stereo tracks up to 10 minutes and needs enough browser memory to decode the track. Ordinary uploads retain their existing limits. No paid speech service, API key, microphone access, or account is required.
+
+Delete is available beside each active track in the uploader's original browser. The server revokes access before deleting the audio object and metadata. Already-open listener pages recheck access every five seconds and stop playback when they detect deletion. Previously captured audio cannot be recalled.
+
+### Audio verification
+
+After building, run:
+
+```sh
+node --experimental-strip-types tests/watermark.test.mjs
+```
+
+The test exercises the production worker, robotic speech synthesis, real MP3 output, stereo mixing, music ducking, automatic placement and invalid/overlapping/out-of-bounds timestamp handling. Additional local Worker checks verified that only the uploaded mixed MP3 is served and that deleting a track removes its stored object and rejects subsequent playback requests.
+
+### Third-party audio code
+
+Audio dependency notices and source links are in `public/licenses/README.txt`. The files under `lib/audio` are available under GPL-3.0-or-later; meSpeak and the MP3 encoder retain their upstream licenses. The build loader reads the eSpeak source using its original Latin-1 comment encoding.

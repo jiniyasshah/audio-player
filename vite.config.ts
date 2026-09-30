@@ -1,5 +1,8 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
+import { readFileSync } from "node:fs";
+// The published eSpeak source uses Latin-1 characters in comments.
+const speechSourceEncoding = () => ({name: "speech-source-encoding", enforce: "pre" as const, load(id:string){if(id.replaceAll("\\", "/").endsWith("/mespeak/src/ESpeak.js"))return readFileSync(id,"latin1");}});
 import hostingConfig from "./.openai/hosting.json";
 import { readExecutionProfile } from "./scripts/execution-profile.mjs";
 import { sites } from "./build/sites-vite-plugin";
@@ -52,6 +55,7 @@ export default defineConfig(async ({ command }) => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    worker: {plugins: () => [speechSourceEncoding()]},
     server: {
       ...(managedLinux
         ? { host: "0.0.0.0", allowedHosts: ["terminal.local"] }
@@ -61,6 +65,7 @@ export default defineConfig(async ({ command }) => {
         : {}),
     },
     plugins: [
+      speechSourceEncoding(),
       vinext(),
       sites({ mockAuth: !managedLinux }),
       connectorPreview(),

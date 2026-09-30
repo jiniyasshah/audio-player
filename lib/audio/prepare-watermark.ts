@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import {MAX_WATERMARK_SECONDS,cleanSpeechText,type WatermarkOptions} from './watermark-core';
+import workerUrl from './watermark.worker.ts?worker&url';
 export type PreparedWatermark={file:File;times:number[];voiceDuration:number};
 export async function prepareWatermark(file:File,options:WatermarkOptions,onProgress:(progress:number)=>void,signal:AbortSignal):Promise<PreparedWatermark>{
  cleanSpeechText(options.text);
@@ -14,7 +15,8 @@ export async function prepareWatermark(file:File,options:WatermarkOptions,onProg
  const sampleRate=decoded.sampleRate;
  const channels=Array.from({length:decoded.numberOfChannels},(_,i)=>decoded.getChannelData(i).slice());
  return new Promise((resolve,reject)=>{
-  const worker=new Worker(new URL('./watermark.worker.ts',import.meta.url),{type:'module'});
+  // Use Vite's emitted public URL. SSR can rewrite import.meta.url to file://.
+  const worker=new Worker(workerUrl,{type:'module'});
   const cleanup=()=>{worker.terminate();signal.removeEventListener('abort',cancel);};
   const cancel=()=>{cleanup();reject(new DOMException('Preparation cancelled.','AbortError'));};
   signal.addEventListener('abort',cancel,{once:true});if(signal.aborted){cancel();return;}

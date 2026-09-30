@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import ts from 'typescript';
 import {watermarkTimes,cleanSpeechText,mixWatermark} from '../lib/audio/watermark-core.ts';
 const options={text:'Preview only. Prepared for Alex.',mode:'manual',timestamps:'0:02',volume:.45,duck:true};
 assert.equal(cleanSpeechText('  Preview   only  '),'Preview only');
@@ -18,6 +19,28 @@ assert(Math.abs(left[50]-.392)<1e-6);assert(left[220]>.392);assert.deepEqual(lef
 assert(Math.abs(left[400]-.392)<1e-6);assert(original.every(x=>Math.abs(x-.4)<1e-6));
 const files=fs.readdirSync(new URL('../dist/client/',import.meta.url),{recursive:true});
 const artifact=files.find(x=>/watermark\.worker-.*\.js$/.test(x));assert(artifact,'Run pnpm build before this test.');
+// Exercise the actual emitted constructor argument; SSR must not turn it into file://.
+let checkedWorkerUrl=false;
+for(const file of files.filter(x=>x.endsWith('.js')&&!/watermark\.worker-/.test(x))){
+ const code=fs.readFileSync(new URL('../dist/client/'+file,import.meta.url),'utf8');
+ if(!code.includes('new Worker('))continue;
+ const ast=ts.createSourceFile(file,code,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
+ const bindings={URL};const constructors=[];
+ function visit(node){
+  if(ts.isVariableDeclaration(node)&&ts.isIdentifier(node.name)&&node.initializer&&(ts.isStringLiteral(node.initializer)||ts.isNoSubstitutionTemplateLiteral(node.initializer))&&node.initializer.text.includes('watermark.worker-'))bindings[node.name.text]=node.initializer.text;
+  if(ts.isNewExpression(node)&&node.expression.getText(ast)==='Worker')constructors.push(node.arguments[0]);
+  ts.forEachChild(node,visit);
+ }
+ visit(ast);
+ for(const arg of constructors){
+  const workerUrl=vm.runInNewContext(arg.getText(ast),bindings);
+  const resolved=new URL(workerUrl,'https://audio.example');
+  assert.equal(resolved.origin,'https://audio.example','Worker must load from the website, not a build-machine file URL.');
+  assert.equal(decodeURIComponent(resolved.pathname.slice(1)),artifact,'Worker URL must match the packaged JavaScript asset.');
+  checkedWorkerUrl=true;
+ }
+}
+assert(checkedWorkerUrl,'Expected a worker constructor in the production client bundle.');
 const messages=[];const scope={console,Uint8Array,Uint16Array,Uint32Array,Int8Array,Int16Array,Int32Array,Float32Array,Float64Array,ArrayBuffer,DataView,TextEncoder,TextDecoder,setTimeout,clearTimeout};
 scope.self=scope;scope.postMessage=m=>messages.push(m);vm.createContext(scope);
 vm.runInContext(fs.readFileSync(new URL('../dist/client/'+artifact,import.meta.url),'utf8'),scope,{timeout:30000});

@@ -99,7 +99,7 @@ export function createVercelApi(store:Store=blob,sign=generateClientTokenFromRea
    const id=crypto.randomUUID().replaceAll('-','')+crypto.randomUUID().replaceAll('-','');
    const created=now();const record:RecordData={id,owner:owner.id,title,mime,size,duration,created,expires:created+DAY,state:'pending',uploadExpires:created+UPLOAD_WINDOW,purgeAfter:created+DAY};
    await write(record);
-   await store.put(indexPath(record),'',{...options(),access:'private',addRandomSuffix:false,cacheControlMaxAge:60});
+   await store.put(indexPath(record),JSON.stringify({id}),{...options(),access:'private',addRandomSuffix:false,contentType:'application/json',cacheControlMaxAge:60});
    const clientToken=await sign({...options(),pathname:audioPath(id),allowedContentTypes:[mime],maximumSizeInBytes:size,validUntil:record.uploadExpires,allowOverwrite:false,addRandomSuffix:false,cacheControlMaxAge:60});
    return json({id,pathname:audioPath(id),clientToken},201);
   }),

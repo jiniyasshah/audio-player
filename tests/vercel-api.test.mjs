@@ -15,6 +15,8 @@ const bytes=value=>typeof value==='string'?new TextEncoder().encode(value):value
 const pathname=value=>value.startsWith('https://')?new URL(value).pathname.slice(1):value;
 const store={
  async put(path,value,options){
+  // Match the real Blob SDK: an empty string is not an accepted upload body.
+  if(!value)throw new Error('Vercel Blob: body is required');
   assert.equal(options.access,'private');
   if(competingWrite&&path.startsWith('afterhours/tracks/')&&JSON.parse(value).state==='active'){const run=competingWrite;competingWrite=null;await run();}
   const previous=objects.get(path);

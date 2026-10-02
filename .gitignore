@@ -47,3 +47,6 @@ next-env.d.ts
 
 # Generated TypeScript cache
 *.tsbuildinfo
+
+/public/generated/
+!.env.example

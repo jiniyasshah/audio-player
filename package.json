@@ -7,17 +7,23 @@
   },
   "scripts": {
     "install:ci": "bash scripts/install-pnpm.sh",
-    "dev": "node scripts/run-framework.mjs dev",
-    "build": "vite build",
+    "dev": "pnpm build:worker && node scripts/run-framework.mjs dev",
+    "build": "pnpm build:sites",
     "start": "node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js dev --config dist/server/wrangler.json --local --persist-to .wrangler/state --ip 127.0.0.1 --inspector-port 0",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "build:sites": "pnpm build:worker && node scripts/run-framework.mjs build",
+    "build:worker": "vite build --config vite.worker.config.ts",
+    "build:vercel": "pnpm build:worker && next build --webpack",
+    "dev:vercel": "pnpm build:worker && next dev --webpack",
+    "start:vercel": "next start"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@breezystack/lamejs": "1.2.7",
     "@hookform/resolvers": "^5.7.1",
     "@shadcn/react": "^0.3.0",
+    "@vercel/blob": "^2.8.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cmdk": "^1.1.1",

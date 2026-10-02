@@ -17,33 +17,35 @@ const original=new Float32Array(1000).fill(.4);const left=original.slice(),right
 mixWatermark([left,right],100,new Float32Array(100).fill(.5),100,[2],options);
 assert(Math.abs(left[50]-.392)<1e-6);assert(left[220]>.392);assert.deepEqual(left,right);
 assert(Math.abs(left[400]-.392)<1e-6);assert(original.every(x=>Math.abs(x-.4)<1e-6));
-const files=fs.readdirSync(new URL('../dist/client/',import.meta.url),{recursive:true});
-const artifact=files.find(x=>/watermark\.worker-.*\.js$/.test(x));assert(artifact,'Run pnpm build before this test.');
-// Exercise the actual emitted constructor argument; SSR must not turn it into file://.
+const artifact=new URL('../public/generated/watermark.worker.js',import.meta.url);
+assert(fs.existsSync(artifact),'Run pnpm build:worker before this test.');
+// Check the actual production client constructor, including native Next.js output.
 let checkedWorkerUrl=false;
-for(const file of files.filter(x=>x.endsWith('.js')&&!/watermark\.worker-/.test(x))){
- const code=fs.readFileSync(new URL('../dist/client/'+file,import.meta.url),'utf8');
- if(!code.includes('new Worker('))continue;
- const ast=ts.createSourceFile(file,code,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
- const bindings={URL};const constructors=[];
- function visit(node){
-  if(ts.isVariableDeclaration(node)&&ts.isIdentifier(node.name)&&node.initializer&&(ts.isStringLiteral(node.initializer)||ts.isNoSubstitutionTemplateLiteral(node.initializer))&&node.initializer.text.includes('watermark.worker-'))bindings[node.name.text]=node.initializer.text;
-  if(ts.isNewExpression(node)&&node.expression.getText(ast)==='Worker')constructors.push(node.arguments[0]);
-  ts.forEachChild(node,visit);
- }
- visit(ast);
- for(const arg of constructors){
-  const workerUrl=vm.runInNewContext(arg.getText(ast),bindings);
-  const resolved=new URL(workerUrl,'https://audio.example');
-  assert.equal(resolved.origin,'https://audio.example','Worker must load from the website, not a build-machine file URL.');
-  assert.equal(decodeURIComponent(resolved.pathname.slice(1)),artifact,'Worker URL must match the packaged JavaScript asset.');
-  checkedWorkerUrl=true;
+for(const directory of ['.next/static/chunks/','dist/client/']){
+ const root=new URL('../'+directory,import.meta.url);if(!fs.existsSync(root))continue;
+ for(const file of fs.readdirSync(root,{recursive:true}).filter(x=>x.endsWith('.js'))){
+  const code=fs.readFileSync(new URL(file,root),'utf8');
+  if(!code.includes('/generated/watermark.worker.js'))continue;
+  const ast=ts.createSourceFile(file,code,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS);
+  function visit(node){
+   if(ts.isNewExpression(node)&&node.expression.getText(ast)==='Worker'){
+    const arg=node.arguments?.[0];
+    if(arg&&(ts.isStringLiteral(arg)||ts.isNoSubstitutionTemplateLiteral(arg))&&arg.text.includes('watermark.worker')){
+     const resolved=new URL(arg.text,'https://audio.example');
+     assert.equal(resolved.origin,'https://audio.example');
+     assert.equal(resolved.pathname,'/generated/watermark.worker.js');
+     checkedWorkerUrl=true;
+    }
+   }
+   ts.forEachChild(node,visit);
+  }
+  visit(ast);
  }
 }
-assert(checkedWorkerUrl,'Expected a worker constructor in the production client bundle.');
+assert(checkedWorkerUrl,'Expected a same-origin worker constructor in a production client build.');
 const messages=[];const scope={console,Uint8Array,Uint16Array,Uint32Array,Int8Array,Int16Array,Int32Array,Float32Array,Float64Array,ArrayBuffer,DataView,TextEncoder,TextDecoder,setTimeout,clearTimeout};
 scope.self=scope;scope.postMessage=m=>messages.push(m);vm.createContext(scope);
-vm.runInContext(fs.readFileSync(new URL('../dist/client/'+artifact,import.meta.url),'utf8'),scope,{timeout:30000});
+vm.runInContext(fs.readFileSync(artifact,'utf8'),scope,{timeout:30000});
 scope.onmessage({data:{channels:[new Float32Array(44100*10),new Float32Array(44100*10)],sampleRate:44100,options}});
 const result=messages.find(m=>m.type==='complete');assert(result,JSON.stringify(messages.filter(m=>m.type==='error')));assert(result.buffer.byteLength>1000);assert.deepEqual(Array.from(result.times),[2]);assert(result.voiceDuration>1&&result.voiceDuration<8);
 if(process.env.WATERMARK_TEST_MP3)fs.writeFileSync(process.env.WATERMARK_TEST_MP3,new Uint8Array(result.buffer));

@@ -7,7 +7,7 @@ import type {Track} from '../storage';
 type RecordData=Track&{state:'pending'|'active'|'deleted';uploadExpires:number;purgeAfter:number};
 type Context={params:Promise<{id:string}>};
 type Store=Pick<typeof blob,'get'|'put'|'del'|'head'|'list'>;
-const DAY=86400000,UPLOAD_WINDOW=15*60000,MAX_SIZE=50*1024*1024;
+const DAY=86400000,UPLOAD_WINDOW=15*60000,MAX_SIZE=150*1024*1024;
 const TYPES=['audio/mpeg','audio/mp4','audio/wav','audio/x-wav','audio/ogg','audio/flac','audio/x-flac','audio/aac'];
 const validId=(id:string)=>/^[a-f0-9]{64}$/.test(id);
 const metadataPath=(id:string)=>`afterhours/tracks/${id}.json`;
@@ -92,7 +92,7 @@ export function createVercelApi(store:Store=blob,sign=generateClientTokenFromRea
    const owner=await owned(request),input=await smallJson(request);
    const {mime,size,duration}=input;const title=typeof input.title==='string'?input.title.trim():'';
    if(!TYPES.includes(mime))throw new HttpError('Please choose a supported audio file.',415);
-   if(!Number.isSafeInteger(size)||size<1||size>MAX_SIZE)throw new HttpError('Please choose a file smaller than 50 MB.',413);
+   if(!Number.isSafeInteger(size)||size<1||size>MAX_SIZE)throw new HttpError('Please choose a file up to 150 MB.',413);
    if(!title||title.length>120||!Number.isFinite(duration)||duration<=0||duration>14400)throw new HttpError('This audio file could not be read.',400);
    const records=await listOwner(owner.id);
    if(records.filter(r=>r.state==='pending'?r.uploadExpires>now():r.state==='active'&&r.expires>now()).length>=10)throw new HttpError('You have 10 active or pending uploads. Delete a track or wait for unfinished uploads to expire.',429);

@@ -45,7 +45,7 @@ assert.equal(initial.status,200);
 const cookie=initial.headers.get('set-cookie').split(';')[0];assert(cookie.startsWith('__Host-afterhours='));
 assert.deepEqual(await initial.json(),{uploadMode:'direct',tracks:[]});
 assert.equal((await api.startUpload(request('POST','',{title:'Song',mime:'audio/mpeg',size:10,duration:5}))).status,403);
-assert.equal((await api.startUpload(request('POST',cookie,{title:'Song',mime:'audio/mpeg',size:60*1024*1024,duration:5}))).status,413);
+assert.equal((await api.startUpload(request('POST',cookie,{title:'Song',mime:'audio/mpeg',size:150*1024*1024+1,duration:5}))).status,413);
 const data=new Uint8Array([1,2,3,4,5,6,7,8,9,10]);
 async function start(){const r=await api.startUpload(request('POST',cookie,{title:'Test song',mime:'audio/mpeg',size:data.length,duration:5}));assert.equal(r.status,201);return r.json();}
 const session=await start();
@@ -76,6 +76,8 @@ assert.equal((await api.trackMetadata(request(),ctx(race.id))).status,410);
 const expired=await start();await store.put(expired.pathname,data,{access:'private',contentType:'audio/mpeg'});await api.completeUpload(request('POST',cookie),ctx(expired.id));
 clock+=86400001;assert.equal((await api.streamTrack(request(),ctx(expired.id))).status,410);
 assert.equal((await (await api.listTracks(request('GET',cookie))).json()).tracks.length,0);assert.equal(objects.size,0);
+const maxUpload=await api.startUpload(request('POST',cookie,{title:'Large song',mime:'audio/mpeg',size:150*1024*1024,duration:5}));
+assert.equal(maxUpload.status,201);assert.equal(signed.at(-1).maximumSizeInBytes,150*1024*1024);
 delete process.env.BLOB_READ_WRITE_TOKEN;
 assert.equal((await api.listTracks(request())).status,503);
 console.log('PASS: Vercel private direct uploads, token limits, owner isolation, streaming ranges, expiry, deletion, and concurrent completion cannot restore deleted audio.');

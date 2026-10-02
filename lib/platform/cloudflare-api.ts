@@ -18,7 +18,7 @@ export async function uploadTrack(request:Request) {
  const mime=request.headers.get('content-type')?.split(';')[0]||'';
  const allowed=['audio/mpeg','audio/mp4','audio/wav','audio/x-wav','audio/ogg','audio/flac','audio/x-flac','audio/aac'];
  if(!allowed.includes(mime))return json({error:'Please choose an MP3, M4A, WAV, OGG, FLAC or AAC audio file.'},415);
- if(!Number.isSafeInteger(size)||size<1||size>50*1024*1024)return json({error:'Please choose a file smaller than 50 MB.'},413);
+ if(!Number.isSafeInteger(size)||size<1||size>150*1024*1024)return json({error:'Please choose a file up to 150 MB.'},413);
  const title=decodeURIComponent(request.headers.get('x-track-title')||'Untitled track').trim().slice(0,120);
  const duration=Number(request.headers.get('x-track-duration'));
  if(!title||!Number.isFinite(duration)||duration<=0||duration>14400||!request.body)return json({error:'This audio file could not be read.'},400);

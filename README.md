@@ -6,7 +6,7 @@ A simple audio-sharing website: upload a song, send a listening link, and let cl
 
 ## Features
 
-- Drag-and-drop upload, up to 50 MB per file.
+- Drag-and-drop upload, up to 150 MB per file.
 - MP3, M4A, WAV, OGG, FLAC and AAC, subject to browser codec support.
 - Public, unguessable listening links that expire 24 hours after upload.
 - Progressive byte-range streaming, seeking, pause, replay, repeat and volume.
@@ -45,7 +45,7 @@ Do not use `vite build` or `pnpm build` for Vercel. The default `pnpm build` sti
 
 No separate database is required for the Vercel target: private metadata objects and a browser-owner index are stored alongside the private audio. The site builds without storage credentials, but uploads/listing require the private store at runtime. A public Blob store is not supported.
 
-Audio is uploaded directly from the browser to Blob with a short-lived token restricted to one generated path, the selected MIME type, and the selected file size (up to 50 MB). This bypasses Vercel Functions' 4.5 MB request-body limit. The server verifies the completed upload before creating the listening link. Audio streams through the access-checked route with byte-range support; clients never receive the store's read-write token or a public audio URL.
+Audio is uploaded directly from the browser to Blob with a short-lived token restricted to one generated path, the selected MIME type, and the selected file size (up to 150 MB). This bypasses Vercel Functions' 4.5 MB request-body limit. The server verifies the completed upload before creating the listening link. Audio streams through the access-checked route with byte-range support; clients never receive the store's read-write token or a public audio URL.
 
 Vercel tracks expire 24 hours after upload completion. Deletion revokes access immediately, removes the audio, and retains a private tombstone until expiry to prevent an in-flight upload from restoring a deleted link. Physical cleanup of expired files and tombstones runs when that sender next loads their tracks or starts an upload. It is not a scheduled purge at exactly 24 hours. Interrupted uploads reserve a slot for 15 minutes.
 

@@ -26,7 +26,7 @@ export async function prepareWatermark(file:File,options:WatermarkOptions,onProg
    cleanup();
    if(data.type==='error'){reject(new Error(data.error));return;}
    const result=new File([data.buffer],file.name.replace(/\.[^.]+$/,'')+'-watermarked.mp3',{type:'audio/mpeg'});
-   if(result.size>50*1024*1024){reject(new Error('The prepared preview exceeds 50 MB. Try a shorter track.'));return;}
+   if(result.size>150*1024*1024){reject(new Error('The prepared preview exceeds 150 MB. Try a shorter track.'));return;}
    resolve({file:result,times:data.times,voiceDuration:data.voiceDuration});
   };
   worker.postMessage({channels,sampleRate,options},channels.map(c=>c.buffer));
